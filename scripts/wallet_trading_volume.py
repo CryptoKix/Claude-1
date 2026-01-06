@@ -137,19 +137,49 @@ def get_jupiter_prices(mints: list) -> dict:
     return {}
 
 def get_helius_transaction_history(wallet: str) -> list:
-    """Get parsed transaction history from Helius API (requires API key)"""
+    """Get ALL parsed transaction history from Helius API with pagination"""
     if not HELIUS_API_KEY:
         return []
 
     all_transactions = []
-    url = f"{HELIUS_API}/addresses/{wallet}/transactions?api-key={HELIUS_API_KEY}"
+    base_url = f"{HELIUS_API}/addresses/{wallet}/transactions?api-key={HELIUS_API_KEY}"
+    before_sig = None
+    page = 1
 
-    try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            all_transactions = response.json()
-    except Exception as e:
-        print(f"Helius API error: {e}")
+    print("  Fetching all transactions (paginating)...")
+
+    while True:
+        try:
+            url = base_url
+            if before_sig:
+                url += f"&before={before_sig}"
+
+            response = requests.get(url)
+            if response.status_code != 200:
+                print(f"  API error: {response.status_code}")
+                break
+
+            transactions = response.json()
+
+            if not transactions:
+                break  # No more transactions
+
+            all_transactions.extend(transactions)
+            print(f"    Page {page}: fetched {len(transactions)} transactions (total: {len(all_transactions)})")
+
+            # Get the signature of the last transaction for pagination
+            last_tx = transactions[-1]
+            before_sig = last_tx.get("signature")
+
+            if not before_sig or len(transactions) < 100:
+                break  # Last page
+
+            page += 1
+            time.sleep(0.2)  # Rate limiting
+
+        except Exception as e:
+            print(f"  Helius API error: {e}")
+            break
 
     return all_transactions
 
@@ -317,7 +347,7 @@ def analyze_wallet_volume(wallet: str) -> tuple:
         print("Using Helius API for transaction history...")
         helius_txs = get_helius_transaction_history(wallet)
         if helius_txs:
-            print(f"  Found {len(helius_txs)} transactions from Helius")
+            print(f"  Total: {len(helius_txs)} transactions fetched")
             all_transfers = parse_helius_transactions(helius_txs, wallet)
             print(f"  Parsed {len(all_transfers)} token transfers")
     else:
