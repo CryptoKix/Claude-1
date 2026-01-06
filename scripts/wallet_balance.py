@@ -24,7 +24,7 @@ load_env()
 WALLET_ADDRESS = "EZ3q7RMhCEn1iVqR7VaGUq2MmREVPU98MQPexMg4U8cq"
 SOLANA_RPC = "https://api.mainnet-beta.solana.com"
 JUPITER_API_KEY = os.environ.get("JUPITER_API_KEY", "")
-JUPITER_PRICE_API = "https://api.jup.ag/price/v2"
+JUPITER_PRICE_API = "https://api.jup.ag/price/v3"
 COINGECKO_API = "https://api.coingecko.com/api/v3"
 
 # Known token symbols
@@ -113,7 +113,7 @@ def get_token_accounts(wallet_address: str) -> list:
     return tokens
 
 def get_jupiter_prices(mint_addresses: list) -> dict:
-    """Get token prices from Jupiter Price API"""
+    """Get token prices from Jupiter Price API V3"""
     if not mint_addresses:
         return {}
 
@@ -126,8 +126,12 @@ def get_jupiter_prices(mint_addresses: list) -> dict:
 
     if response.status_code == 200:
         data = response.json()
-        if "data" in data:
-            return data.get("data", {})
+        # V3 returns prices directly, convert to common format
+        prices = {}
+        for mint, info in data.items():
+            if isinstance(info, dict) and "usdPrice" in info:
+                prices[mint] = {"price": info["usdPrice"]}
+        return prices
     return {}
 
 def get_prices(mint_addresses: list) -> dict:
