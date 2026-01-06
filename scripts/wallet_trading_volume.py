@@ -10,11 +10,25 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 import json
 import time
+import os
+
+# Load environment variables from .env file
+def load_env():
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ[key.strip()] = value.strip()
+
+load_env()
 
 WALLET_ADDRESS = "EZ3q7RMhCEn1iVqR7VaGUq2MmREVPU98MQPexMg4U8cq"
 
-# APIs - Set your Helius API key for better results (free tier available at helius.dev)
-HELIUS_API_KEY = ""  # Get free key at https://helius.dev
+# APIs - Set HELIUS_API_KEY in .env file (free tier available at helius.dev)
+HELIUS_API_KEY = os.environ.get("HELIUS_API_KEY", "")
 SOLANA_RPC = f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}" if HELIUS_API_KEY else "https://api.mainnet-beta.solana.com"
 JUPITER_PRICE_API = "https://api.jup.ag/price/v2"
 HELIUS_API = "https://api.helius.xyz/v0"
