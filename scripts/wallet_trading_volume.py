@@ -27,10 +27,11 @@ load_env()
 
 WALLET_ADDRESS = "EZ3q7RMhCEn1iVqR7VaGUq2MmREVPU98MQPexMg4U8cq"
 
-# APIs - Set HELIUS_API_KEY in .env file (free tier available at helius.dev)
+# APIs - Set API keys in .env file
 HELIUS_API_KEY = os.environ.get("HELIUS_API_KEY", "")
+JUPITER_API_KEY = os.environ.get("JUPITER_API_KEY", "")
 SOLANA_RPC = f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}" if HELIUS_API_KEY else "https://api.mainnet-beta.solana.com"
-JUPITER_PRICE_API = "https://api.jup.ag/price/v2"
+JUPITER_PRICE_API = "https://api.jup.ag/price/v3"
 HELIUS_API = "https://api.helius.xyz/v0"
 
 # Rate limiting
@@ -124,14 +125,24 @@ def get_transaction(signature: str, retries: int = 3) -> dict:
     return {}
 
 def get_jupiter_prices(mints: list) -> dict:
-    """Get current prices from Jupiter"""
+    """Get current prices from Jupiter V3 API"""
     if not mints:
         return {}
     try:
         ids = ",".join(mints[:100])  # Limit to 100
-        response = requests.get(f"{JUPITER_PRICE_API}?ids={ids}")
+        headers = {}
+        if JUPITER_API_KEY:
+            headers["x-api-key"] = JUPITER_API_KEY
+
+        response = requests.get(f"{JUPITER_PRICE_API}?ids={ids}", headers=headers)
         if response.status_code == 200:
-            return response.json().get("data", {})
+            data = response.json()
+            # V3 returns prices directly with usdPrice field
+            prices = {}
+            for mint, info in data.items():
+                if isinstance(info, dict) and "usdPrice" in info:
+                    prices[mint] = {"price": info["usdPrice"]}
+            return prices
     except:
         pass
     return {}
@@ -518,6 +529,20 @@ def print_volume_report(volume_data: dict, prices: dict):
         total_vol = total_buy + total_sell
 
         print(f"{timeframe_labels[tf]:<12}{format_volume(total_buy):<22}{format_volume(total_sell):<22}{format_volume(total_vol):<22}")
+
+    # Cumulative lifetime total
+    lifetime_bought = sum(data["lifetime"].get("buy_usd", 0) for data in volume_data.values())
+    lifetime_sold = sum(data["lifetime"].get("sell_usd", 0) for data in volume_data.values())
+    lifetime_total = lifetime_bought + lifetime_sold
+    lifetime_trades = sum(data["lifetime"].get("trades", 0) for data in volume_data.values())
+
+    print(f"\n{'=' * 85}")
+    print("CUMULATIVE LIFETIME TOTALS")
+    print("=" * 85)
+    print(f"\n  Total Bought:    {format_volume(lifetime_bought)}")
+    print(f"  Total Sold:      {format_volume(lifetime_sold)}")
+    print(f"  Total Volume:    {format_volume(lifetime_total)}")
+    print(f"  Total Trades:    {lifetime_trades:,}")
 
     print(f"\n{'=' * 85}")
     print(f"Report generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
