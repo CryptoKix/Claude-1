@@ -10,6 +10,42 @@ import json
 WALLET_ADDRESS = "EZ3q7RMhCEn1iVqR7VaGUq2MmREVPU98MQPexMg4U8cq"
 SOLANA_RPC = "https://api.mainnet-beta.solana.com"
 JUPITER_PRICE_API = "https://api.jup.ag/price/v2"
+COINGECKO_API = "https://api.coingecko.com/api/v3"
+
+# Known token symbols
+KNOWN_TOKENS = {
+    "So11111111111111111111111111111111111111112": "SOL",
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "USDC",
+    "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB": "USDT",
+    "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN": "JUP",
+    "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So": "mSOL",
+    "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263": "BONK",
+    "METAewgxyPbgwsseH8T16a39CQ5VyVxZi9zXiDPY18m": "META",
+}
+
+def get_token_symbol(mint: str) -> str:
+    """Get token symbol from mint address"""
+    if mint in KNOWN_TOKENS:
+        return KNOWN_TOKENS[mint]
+    return f"{mint[:4]}...{mint[-4:]}"
+
+def format_price(price: float) -> str:
+    """Format price based on magnitude"""
+    if price >= 1:
+        return f"${price:,.2f}"
+    elif price >= 0.0001:
+        return f"${price:.6f}"
+    elif price > 0:
+        return f"${price:.10f}"
+    return "N/A"
+
+def format_value(value: float) -> str:
+    """Format USD value"""
+    if value >= 1:
+        return f"${value:,.2f}"
+    elif value > 0:
+        return f"${value:.4f}"
+    return "$0.00"
 
 def get_sol_balance(wallet_address: str) -> float:
     """Get SOL balance for a wallet address"""
@@ -71,63 +107,144 @@ def get_jupiter_prices(mint_addresses: list) -> dict:
 
     if response.status_code == 200:
         data = response.json()
-        return data.get("data", {})
+        if "data" in data:
+            return data.get("data", {})
     return {}
 
+def get_prices(mint_addresses: list) -> dict:
+    """Get token prices - tries Jupiter first, then CoinGecko"""
+    prices = {}
+
+    # Try Jupiter first
+    jupiter_prices = get_jupiter_prices(mint_addresses)
+    if jupiter_prices:
+        return jupiter_prices
+
+    # Fallback to CoinGecko
+    # Map of mint addresses to CoinGecko IDs
+    coingecko_ids = {
+        "So11111111111111111111111111111111111111112": "solana",
+        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "usd-coin",
+        "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB": "tether",
+        "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN": "jupiter-exchange-solana",
+        "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263": "bonk",
+        "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So": "msol",
+    }
+
+    # Get CoinGecko IDs for mints we have
+    ids_to_fetch = []
+    mint_to_cg = {}
+    for mint in mint_addresses:
+        if mint in coingecko_ids:
+            cg_id = coingecko_ids[mint]
+            ids_to_fetch.append(cg_id)
+            mint_to_cg[cg_id] = mint
+
+    if ids_to_fetch:
+        try:
+            ids_str = ",".join(ids_to_fetch)
+            response = requests.get(
+                f"{COINGECKO_API}/simple/price?ids={ids_str}&vs_currencies=usd"
+            )
+            if response.status_code == 200:
+                data = response.json()
+                for cg_id, price_data in data.items():
+                    if cg_id in mint_to_cg:
+                        mint = mint_to_cg[cg_id]
+                        prices[mint] = {"price": price_data.get("usd", 0)}
+        except Exception as e:
+            pass
+
+    # For tokens not in CoinGecko, try to get price via Solana contract
+    remaining = [m for m in mint_addresses if m not in prices]
+    if remaining:
+        try:
+            addresses = ",".join(remaining)
+            response = requests.get(
+                f"{COINGECKO_API}/simple/token_price/solana?contract_addresses={addresses}&vs_currencies=usd"
+            )
+            if response.status_code == 200:
+                data = response.json()
+                for mint, price_data in data.items():
+                    prices[mint] = {"price": price_data.get("usd", 0)}
+        except:
+            pass
+
+    return prices
+
 def main():
-    print(f"Querying wallet: {WALLET_ADDRESS}\n")
-    print("=" * 60)
+    print("=" * 75)
+    print("SOLANA WALLET BALANCE")
+    print(f"Wallet: {WALLET_ADDRESS}")
+    print("=" * 75)
 
     # Get SOL balance
     sol_balance = get_sol_balance(WALLET_ADDRESS)
-    print(f"\nSOL Balance: {sol_balance:.9f} SOL")
-
-    # Get SOL price from Jupiter
     sol_mint = "So11111111111111111111111111111111111111112"
-    sol_price_data = get_jupiter_prices([sol_mint])
-
-    if sol_mint in sol_price_data:
-        sol_price = float(sol_price_data[sol_mint].get("price", 0))
-        sol_value = sol_balance * sol_price
-        print(f"SOL Price: ${sol_price:.2f}")
-        print(f"SOL Value: ${sol_value:.2f}")
 
     # Get token accounts
-    print("\n" + "=" * 60)
-    print("\nSPL Token Balances:")
-    print("-" * 60)
-
     tokens = get_token_accounts(WALLET_ADDRESS)
 
-    if not tokens:
-        print("No SPL tokens found")
-    else:
-        # Get prices for all tokens
-        mints = [t["mint"] for t in tokens]
-        prices = get_jupiter_prices(mints)
+    # Get all prices at once (including SOL)
+    all_mints = [sol_mint] + [t["mint"] for t in tokens]
+    prices = get_prices(all_mints)
 
-        total_value = sol_balance * sol_price if sol_mint in sol_price_data else 0
+    # Calculate SOL value
+    sol_price = float(prices.get(sol_mint, {}).get("price", 0))
+    sol_value = sol_balance * sol_price
 
-        for token in tokens:
-            mint = token["mint"]
-            balance = token["balance"]
+    # Build portfolio data
+    portfolio = [{
+        "symbol": "SOL",
+        "mint": sol_mint,
+        "balance": sol_balance,
+        "price": sol_price,
+        "value": sol_value
+    }]
 
-            price_info = prices.get(mint, {})
-            price = float(price_info.get("price", 0))
-            value = balance * price
-            total_value += value
+    for token in tokens:
+        mint = token["mint"]
+        balance = token["balance"]
+        price = float(prices.get(mint, {}).get("price", 0))
+        value = balance * price
 
-            # Truncate mint for display
-            short_mint = f"{mint[:8]}...{mint[-4:]}"
+        portfolio.append({
+            "symbol": get_token_symbol(mint),
+            "mint": mint,
+            "balance": balance,
+            "price": price,
+            "value": value
+        })
 
-            print(f"\nMint: {short_mint}")
-            print(f"  Balance: {balance:,.6f}")
-            if price > 0:
-                print(f"  Price: ${price:.6f}")
-                print(f"  Value: ${value:.2f}")
+    # Sort by value (highest first)
+    portfolio.sort(key=lambda x: x["value"], reverse=True)
 
-        print("\n" + "=" * 60)
-        print(f"\nTotal Portfolio Value: ${total_value:.2f}")
+    # Print table header
+    print(f"\n{'Token':<12}{'Balance':<20}{'Price':<16}{'Value (USD)':<15}")
+    print("-" * 75)
+
+    total_value = 0
+    for item in portfolio:
+        symbol = item["symbol"]
+        balance = item["balance"]
+        price = item["price"]
+        value = item["value"]
+        total_value += value
+
+        # Format balance
+        if balance >= 1000000:
+            bal_str = f"{balance:,.0f}"
+        elif balance >= 1:
+            bal_str = f"{balance:,.4f}"
+        else:
+            bal_str = f"{balance:.9f}"
+
+        print(f"{symbol:<12}{bal_str:<20}{format_price(price):<16}{format_value(value):<15}")
+
+    # Print total
+    print("-" * 75)
+    print(f"{'TOTAL':<12}{'':<20}{'':<16}{format_value(total_value):<15}")
+    print("=" * 75)
 
 if __name__ == "__main__":
     main()
