@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana Wallet Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a28;
+            --bg-hover: #22222f;
+            --accent: #00d4ff;
+            --accent-green: #00ff88;
+            --accent-red: #ff4757;
+            --accent-purple: #9945FF;
+            --accent-orange: #ff9500;
+            --text-primary: #ffffff;
+            --text-secondary: #8888a0;
+            --border: #2a2a3a;
+            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-2: linear-gradient(135deg, #00d4ff 0%, #00ff88 100%);
+            --gradient-3: linear-gradient(135deg, #9945FF 0%, #00d4ff 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            padding: 24px 32px;
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--gradient-3);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 20px;
+            box-shadow: 0 4px 20px rgba(153, 69, 255, 0.3);
+        }
+
+        .logo h1 {
+            font-size: 26px;
+            font-weight: 700;
+            background: var(--gradient-2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .wallet-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .wallet-badge .dot {
+            width: 10px;
+            height: 10px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .wallet-address {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 28px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-2);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent);
+            box-shadow: 0 12px 40px rgba(0, 212, 255, 0.15);
+        }
+
+        .stat-card:hover::before {
+            opacity: 1;
+        }
+
+        .stat-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 16px;
+        }
+
+        .stat-icon.blue { background: rgba(0, 212, 255, 0.15); color: var(--accent); }
+        .stat-icon.green { background: rgba(0, 255, 136, 0.15); color: var(--accent-green); }
+        .stat-icon.purple { background: rgba(153, 69, 255, 0.15); color: var(--accent-purple); }
+        .stat-icon.orange { background: rgba(255, 149, 0, 0.15); color: var(--accent-orange); }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .stat-value.gradient {
+            background: var(--gradient-2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Sections */
+        .section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 28px;
+            margin-bottom: 28px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-title span {
+            font-size: 24px;
+        }
+
+        .btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: var(--accent);
+            color: var(--bg-primary);
+            border-color: var(--accent);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            background: var(--bg-card);
+            padding: 6px;
+            border-radius: 12px;
+            width: fit-content;
+        }
+
+        .tab {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 10px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        .tab:hover:not(.active) {
+            color: var(--text-primary);
+            background: var(--bg-hover);
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            padding: 14px 16px;
+            text-align: left;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 18px 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+
+        tr:hover td {
+            background: var(--bg-hover);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .token-cell {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .token-icon {
+            width: 42px;
+            height: 42px;
+            background: var(--gradient-3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(153, 69, 255, 0.2);
+        }
+
+        .token-info .name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .token-info .mint {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        .positive { color: var(--accent-green); }
+        .negative { color: var(--accent-red); }
+
+        .totals-row {
+            background: var(--bg-card);
+        }
+
+        .totals-row td {
+            font-weight: 600;
+            border-bottom: none;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 80px;
+            color: var(--text-secondary);
+            gap: 20px;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .meta-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 16px; }
+            header { flex-direction: column; gap: 16px; padding: 20px; }
+            .wallet-badge { display: none; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .section { padding: 20px; }
+            .tabs { width: 100%; overflow-x: auto; }
+            th, td { padding: 12px 10px; font-size: 12px; }
+            .token-icon { width: 32px; height: 32px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-icon">S</div>
+                <h1>Solana Dashboard</h1>
+            </div>
+            <div class="wallet-badge">
+                <div class="dot"></div>
+                <span class="wallet-address" id="wallet-address">Loading...</span>
+            </div>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon blue">💰</div>
+                <div class="stat-label">Portfolio Value</div>
+                <div class="stat-value gradient" id="total-value">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon purple">📊</div>
+                <div class="stat-label">Lifetime Volume</div>
+                <div class="stat-value gradient" id="lifetime-volume">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green">🔄</div>
+                <div class="stat-label">Total Trades</div>
+                <div class="stat-value" id="total-trades">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon orange">⚡</div>
+                <div class="stat-label">24h Volume</div>
+                <div class="stat-value" id="daily-volume">--</div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title"><span>💎</span> Portfolio Holdings</h2>
+                <button class="btn" onclick="loadBalance()">↻ Refresh</button>
+            </div>
+            <div id="balance-content">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>Loading portfolio...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title"><span>📈</span> Trading Volume</h2>
+                <button class="btn" onclick="loadVolume()">↻ Refresh</button>
+            </div>
+            <div class="tabs">
+                <button class="tab active" data-tf="1d">24 Hours</button>
+                <button class="tab" data-tf="7d">7 Days</button>
+                <button class="tab" data-tf="30d">30 Days</button>
+                <button class="tab" data-tf="lifetime">Lifetime</button>
+            </div>
+            <div id="volume-content">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>Loading volume data...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let volumeData = null;
+        let currentTimeframe = '1d';
+
+        function formatCurrency(value) {
+            if (value >= 1e9) return '$' + (value / 1e9).toFixed(2) + 'B';
+            if (value >= 1e6) return '$' + (value / 1e6).toFixed(2) + 'M';
+            if (value >= 1e3) return '$' + (value / 1e3).toFixed(2) + 'K';
+            if (value >= 1) return '$' + value.toFixed(2);
+            if (value > 0) return '$' + value.toFixed(4);
+            return '$0.00';
+        }
+
+        function formatNumber(value) {
+            if (value >= 1e6) return value.toLocaleString(undefined, {maximumFractionDigits: 0});
+            if (value >= 1) return value.toLocaleString(undefined, {maximumFractionDigits: 4});
+            if (value > 0) return value.toFixed(6);
+            return '0';
+        }
+
+        function formatPrice(price) {
+            if (price >= 1) return '$' + price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (price >= 0.0001) return '$' + price.toFixed(6);
+            if (price > 0) return '$' + price.toFixed(10);
+            return 'N/A';
+        }
+
+        async function loadBalance() {
+            try {
+                const response = await fetch('/api/balance');
+                const data = await response.json();
+
+                document.getElementById('wallet-address').textContent =
+                    data.wallet.slice(0, 6) + '...' + data.wallet.slice(-4);
+                document.getElementById('total-value').textContent = formatCurrency(data.total_value);
+
+                let html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Token</th>
+                                <th>Balance</th>
+                                <th>Price</th>
+                                <th style="text-align: right">Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                data.portfolio.forEach(token => {
+                    const initial = token.symbol.charAt(0).toUpperCase();
+                    html += `
+                        <tr>
+                            <td>
+                                <div class="token-cell">
+                                    <div class="token-icon">${initial}</div>
+                                    <div class="token-info">
+                                        <div class="name">${token.symbol}</div>
+                                        <div class="mint">${token.mint.slice(0, 6)}...${token.mint.slice(-4)}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>${formatNumber(token.balance)}</td>
+                            <td>${formatPrice(token.price)}</td>
+                            <td style="text-align: right; font-weight: 600">${formatCurrency(token.value)}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                        <tr class="totals-row">
+                            <td colspan="3">Total Portfolio Value</td>
+                            <td style="text-align: right; font-size: 18px">${formatCurrency(data.total_value)}</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <div class="meta-info">
+                        <span>${data.portfolio.length} assets</span>
+                        <span>Updated: ${new Date(data.updated).toLocaleString()}</span>
+                    </div>
+                `;
+
+                document.getElementById('balance-content').innerHTML = html;
+            } catch (error) {
+                document.getElementById('balance-content').innerHTML =
+                    '<div class="loading" style="color: var(--accent-red)">Error loading balance</div>';
+            }
+        }
+
+        async function loadVolume() {
+            try {
+                document.getElementById('volume-content').innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <span>Analyzing transactions (this may take a moment)...</span>
+                    </div>
+                `;
+
+                const response = await fetch('/api/volume');
+                volumeData = await response.json();
+
+                document.getElementById('lifetime-volume').textContent = formatCurrency(volumeData.totals.lifetime.total);
+                document.getElementById('total-trades').textContent = volumeData.totals.lifetime.trades.toLocaleString();
+                document.getElementById('daily-volume').textContent = formatCurrency(volumeData.totals['1d'].total);
+
+                renderVolumeTable(currentTimeframe);
+            } catch (error) {
+                document.getElementById('volume-content').innerHTML =
+                    '<div class="loading" style="color: var(--accent-red)">Error loading volume data</div>';
+            }
+        }
+
+        function renderVolumeTable(timeframe) {
+            if (!volumeData) return;
+
+            const totals = volumeData.totals[timeframe];
+            const activeTokens = volumeData.tokens.filter(t => t.timeframes[timeframe].trades > 0);
+
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Token</th>
+                            <th>Bought</th>
+                            <th>Sold</th>
+                            <th>Total Volume</th>
+                            <th style="text-align: right">Trades</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            activeTokens.forEach(token => {
+                const tf = token.timeframes[timeframe];
+                const initial = token.symbol.charAt(0).toUpperCase();
+                html += `
+                    <tr>
+                        <td>
+                            <div class="token-cell">
+                                <div class="token-icon">${initial}</div>
+                                <div class="token-info">
+                                    <div class="name">${token.symbol}</div>
+                                    <div class="mint">${token.mint.slice(0, 6)}...${token.mint.slice(-4)}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="positive">${formatCurrency(tf.buy_usd)}</td>
+                        <td class="negative">${formatCurrency(tf.sell_usd)}</td>
+                        <td style="font-weight: 600">${formatCurrency(tf.total_usd)}</td>
+                        <td style="text-align: right">${tf.trades.toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    <tr class="totals-row">
+                        <td>Total</td>
+                        <td class="positive">${formatCurrency(totals.buy)}</td>
+                        <td class="negative">${formatCurrency(totals.sell)}</td>
+                        <td style="font-size: 18px">${formatCurrency(totals.total)}</td>
+                        <td style="text-align: right">${totals.trades.toLocaleString()}</td>
+                    </tr>
+                    </tbody>
+                </table>
+                <div class="meta-info">
+                    <span>${volumeData.transaction_count.toLocaleString()} transactions analyzed</span>
+                    <span>Updated: ${new Date(volumeData.updated).toLocaleString()}</span>
+                </div>
+            `;
+
+            document.getElementById('volume-content').innerHTML = html;
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                currentTimeframe = tab.dataset.tf;
+                renderVolumeTable(currentTimeframe);
+            });
+        });
+
+        // Initial load
+        loadBalance();
+        loadVolume();
+    </script>
+</body>
+</html>
