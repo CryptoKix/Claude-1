@@ -6,9 +6,24 @@ Queries SOL and token balances using Solana RPC and Jupiter Price API
 
 import requests
 import json
+import os
+
+# Load environment variables from .env file
+def load_env():
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ[key.strip()] = value.strip()
+
+load_env()
 
 WALLET_ADDRESS = "EZ3q7RMhCEn1iVqR7VaGUq2MmREVPU98MQPexMg4U8cq"
 SOLANA_RPC = "https://api.mainnet-beta.solana.com"
+JUPITER_API_KEY = os.environ.get("JUPITER_API_KEY", "")
 JUPITER_PRICE_API = "https://api.jup.ag/price/v2"
 COINGECKO_API = "https://api.coingecko.com/api/v3"
 
@@ -103,7 +118,11 @@ def get_jupiter_prices(mint_addresses: list) -> dict:
         return {}
 
     ids = ",".join(mint_addresses)
-    response = requests.get(f"{JUPITER_PRICE_API}?ids={ids}")
+    headers = {}
+    if JUPITER_API_KEY:
+        headers["x-api-key"] = JUPITER_API_KEY
+
+    response = requests.get(f"{JUPITER_PRICE_API}?ids={ids}", headers=headers)
 
     if response.status_code == 200:
         data = response.json()
